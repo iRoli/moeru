@@ -1,8 +1,26 @@
 # Moeru, a simple anime episodes notifier.
 # Currently unfinished, and very ugly.
+# Things to complete:
+# Marshaling objects into a file, creating & loading this file, proper methods to command(), indexing/ID's to the series, method to
+# search a series, download every .torrent file (something to control if was downloaded and deleted), maybe split this thing into related files.
 # License: nay
 
 require "open-uri"
+# Module Help
+# Description: List the commands available with a simple description.
+module Help
+    attr_reader :list
+    def get
+    @list =
+"Command  ----  Action
+    add    -- Add new anime
+    delete -- delete anime, it will ask for id
+    edit   -- edit anime
+    update -- will check if new episodes
+    quit   -- exit"
+    end
+end
+# End of Module Help
 
 # Module RequestEpisodes
 # Description: This module gets an array containing the list of uploaded episodes, from the html source.
@@ -35,6 +53,7 @@ module RequestEpisodes
     #print "List: #{@list}"
     end
 end
+# End of Module RequestEpisodes
 
 # BuildUrl -------- BEGIN OF CLASS --------
 # Description: Builds an rss url of nyaa.se when given a series name and the fansubbing group.
@@ -61,6 +80,79 @@ class BuildUrl
 end
 # BuildUrl -------- END OF CLASS --------
 
+# Method command
+# Description: Ask for an action to do (command), like adding, delete, edit a series.
+# Parameters: The command, a string.
+# Returns: Depends on the command given, sometimes an object, other just edit that object.
+def command
+    include Help
+    list = Help.get
+    cmd_unknown = false
+    loop do
+        if (cmd_unknown == false)
+            print "Enter cmd: "
+        else
+            puts "Unknown command"
+            printf "Enter cmd (press ? for all the available commands): "
+        end
+        # Read stdin
+        @cmd = String(gets.chomp)
+        #Switch
+        case @cmd
+            when 'add'
+                # Add new anime
+                series = AddSeries.new.anime
+                break(series)
+            when 'delete'
+                # Ask id/delete, delete anime
+                puts "deleting anime"
+                break('delete')
+            when 'edit'
+                # Edit anime, ask for id/name
+                puts "editing anime"
+                break('edit')
+            when 'update'
+                # Update all animays, not sure if we want to make this automatically. ;-;
+                puts "updating anime"
+                break('update')
+            when '?', 'help', 'welp'
+                # Check connection.
+                # Check file.
+                # Print commands.
+                puts list
+                break('help')
+            when 'quit'
+                # Quit plox
+                puts "exiting...\n"
+                break('quit')
+            else
+                # ask_again
+                cmd_unknown = true
+        end
+    end    
+end
+# End of Method command
+
+# Index -------- BEGIN OF CLASS --------
+# Description: This is the index for the series object, use the method up when a new series is pushed into the array. The method
+#              down is used when the object pushed into the array is not a valid AnimeProfile object (like a string for exammple).
+# Parameters: --
+# Returns: --
+class Index
+    attr_reader :number
+    def initialize#(name)
+        # Read Marshal file
+        @number = 0
+    end
+    def up
+        @number += 1
+    end
+    def down
+        @number -= 1
+    end
+end
+# Index -------- END OF CLASS --------
+
 # GetInfo -------- BEGIN OF CLASS --------
 # Description: Ask for an anime name, the subbing group, the episodes already watched, 
 # Parameters: Two strings, the anime name and the sub group.
@@ -75,7 +167,7 @@ class GetInfo
     @ask_subgroup = String(gets.chomp)
     end
     def ask_resolution
-    printf("Enter resolution (normally one of the following 420p|720p|1280p|1920p): ")
+    printf("Enter resolution (normally one of the following 420p|720p|1080p): ")
     @ask_resolution = String(gets.chomp)
     end
     def ask_eps_seen
@@ -120,20 +212,19 @@ end
 class AddSeries
     attr_reader :anime
     def initialize
-    @anime = AnimeProfile.new # Create a new series
-    getinfo = GetInfo.new
-    @anime.name = getinfo.ask_anime
-    @anime.fansub = getinfo.ask_subgroup
-    @anime.resolution = getinfo.ask_resolution
+    @anime             = AnimeProfile.new # Create a new series
+    getinfo            = GetInfo.new
+    @anime.name        = getinfo.ask_anime
+    @anime.fansub      = getinfo.ask_subgroup
+    @anime.resolution  = getinfo.ask_resolution
     @anime.builded_url = BuildUrl.new(anime.name, anime.fansub, anime.resolution).build # Build url
-    @anime.eps_seen = getinfo.ask_eps_seen
+    @anime.eps_seen    = getinfo.ask_eps_seen
     @anime.request_page
     end
 end
 # AddSeries -------- END OF CLASS --------
-
+=begin
 anime = AddSeries.new.anime
-
 # stdout
 puts ("\n")
 #puts anime.name
@@ -143,3 +234,34 @@ puts anime.builded_url
 #puts anime.eps_seen
 puts "Episodes found: #{anime.eps_found}"
 puts "Episodes left: #{anime.eps_remaining}"
+=end
+puts "Welcome to moeru :3"
+series = []
+condition = 0
+index = Index.new # Index for array
+
+while condition < 3
+    series[index.number] = command()
+    case series[index.number]
+        when 'delete', 'edit', 'update', 'help'
+            # Do nothing, improve this, is ugly.
+        when 'quit'
+            series.pop
+            break
+        else
+            index.up
+            condition += 1
+    end
+end
+
+#p series
+i = 0
+series.each do
+    puts "Anime: #{series[i].name}"
+    puts "Url built:"
+    puts series[i].builded_url
+    puts "Episodes found: #{series[i].eps_found}"
+    puts "Episodes left: #{series[i].eps_remaining}"
+    puts
+    i += 1
+end
