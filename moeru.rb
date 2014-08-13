@@ -1,9 +1,14 @@
-# Moeru, a simple anime episodes notifier.
+# moeru, a simple anime episodes notifier.
 # Currently unfinished, and very ugly.
-# Things to complete:
-# Marshaling objects into a file, creating & loading this file, proper methods to command(), indexing/ID's to the series, method to
-# search a series, download every .torrent file (something to control if was downloaded and deleted), maybe split this thing into related files.
-# License: nay
+# Things to complete/do:
+# 1 - Creating & loading a file that contains the Marshaling data, create one if doesn't exists.
+# 2 - Proper methods to comand(): delete series by ID/Name, edit series, update series.
+# 3 - More atributes to AnimeProfile: @torrents downloaded which should'nt be downloaded again, unless user specify it.
+#     @error true if there was an error prior fetching the page, so the user will need to use update().
+# 4 - Better exceptions: File isn't created, cand't be read nor writed in. Support this in: NT | Gnu/Linux | Os X
+#     The page hasn't any episode (Maybe the name and/or sub isn't correct) raise a message.
+# 5 - Split this into files.
+# License: nay, for_what_purposes.jpg
 
 require "open-uri"
 # Module Help
@@ -12,11 +17,13 @@ module Help
     attr_reader :list
     def get
     @list =
-"Command  ----  Action
+" Command  ----  Action
     add    -- Add new anime
-    delete -- delete anime, it will ask for id
     edit   -- edit anime
+    list   -- prints the list of animes and corresponding ID
+              which is used to edit them
     update -- will check if new episodes
+    delete -- delete anime, it will ask for id
     quit   -- exit"
     end
 end
@@ -28,10 +35,10 @@ end
 module RequestEpisodes
     def request_page
         begin
-        source = open(@builded_url).read
+            source = open(@builded_url) {|html| html.read}
         rescue
-        source = nil
-        puts "Exception reached"
+            source = nil
+            puts "Page can't be fetched"
         end
         regex = /<title>([^<]*)<\/title>/
         if (source != nil) 
@@ -83,11 +90,12 @@ end
 # Method command
 # Description: Ask for an action to do (command), like adding, delete, edit a series.
 # Parameters: The command, a string.
-# Returns: Depends on the command given, sometimes an object, other just edit that object.
+# Returns: A string containing the command.
 def command
     include Help
     list = Help.get
     cmd_unknown = false
+    # add, edit, list, update, delete, quit
     loop do
         if (cmd_unknown == false)
             print "Enter cmd: "
@@ -101,20 +109,21 @@ def command
         case @cmd
             when 'add'
                 # Add new anime
-                series = AddSeries.new.anime
-                break(series)
-            when 'delete'
-                # Ask id/delete, delete anime
-                puts "deleting anime"
-                break('delete')
+                break('add')
             when 'edit'
                 # Edit anime, ask for id/name
                 puts "editing anime"
                 break('edit')
+            when 'list'
+                break('list')
             when 'update'
                 # Update all animays, not sure if we want to make this automatically. ;-;
                 puts "updating anime"
                 break('update')
+            when 'delete'
+                # Ask id/delete, delete anime
+                puts "deleting anime"
+                break('delete')
             when '?', 'help', 'welp'
                 # Check connection.
                 # Check file.
@@ -223,38 +232,29 @@ class AddSeries
     end
 end
 # AddSeries -------- END OF CLASS --------
-=begin
-anime = AddSeries.new.anime
-# stdout
-puts ("\n")
-#puts anime.name
-#puts anime.fansub
-puts "Url built:"
-puts anime.builded_url
-#puts anime.eps_seen
-puts "Episodes found: #{anime.eps_found}"
-puts "Episodes left: #{anime.eps_remaining}"
-=end
+
 puts "Welcome to moeru :3"
 series = []
 condition = 0
 index = Index.new # Index for array
 
 while condition < 3
-    series[index.number] = command()
-    case series[index.number]
-        when 'delete', 'edit', 'update', 'help'
+    case command()
+        when 'add'
+            series[index.number] = AddSeries.new.anime
+            index.up
+            condition += 1
+        when 'delete', 'edit', 'update', 'help', 'list'
             # Do nothing, improve this, is ugly.
         when 'quit'
-            series.pop
+            # series.pop
             break
         else
-            index.up
+            # index.up
             condition += 1
     end
 end
 
-#p series
 i = 0
 series.each do
     puts "Anime: #{series[i].name}"
