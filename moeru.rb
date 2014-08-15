@@ -10,6 +10,9 @@
 # 5 - Split this into files.
 # License: nay, for_what_purposes.jpg
 
+# Debug, :ON || :OFF
+DEBUG = :OFF
+
 require "open-uri"
 # Module Help
 # Description: List the commands available with a simple description.
@@ -121,7 +124,7 @@ def command
                 puts "updating anime"
                 break('update')
             when 'delete'
-                # Ask id/delete, delete anime
+                # JUST ask for deleting command
                 puts "deleting anime"
                 break('delete')
             when '?', 'help', 'welp'
@@ -138,9 +141,54 @@ def command
                 # ask_again
                 cmd_unknown = true
         end
-    end    
+    end 
 end
 # End of Method command
+
+# Method ask_id
+# Description: Ask for an ID, validating it.
+# Parameters: --
+# Returns: An integer or nil if the input wasn't proper.
+def ask_id
+        print("Enter id to delete (n to cancel):")
+        id = gets.chomp
+        id = Integer(id) rescue nil
+        return id
+end
+# End of Method ask_id
+
+# Method delete
+# Description: Delete a series item.
+# Parameters: The series array and the ID.
+# Returns: --
+def delete(series, id)
+        if (id != nil)
+            series.delete_at(id)
+        end
+end
+# End of Method ask_id
+
+# List  -------- BEGIN OF CLASS --------
+# Description: Prints all the series name and the id.
+# Parameters: The arrays of series.
+# Returns: Nothing, only prints into the stdout.
+class List
+    def initialize(series)
+    @series = series
+    end
+    def get
+        if (@series.length != 0)
+            @series.each.with_index do |anime, id|
+                puts "Anime: #{anime.name} ID: #{id}"
+            end
+        else
+            puts "List is empty"
+        end
+        puts @series.object_id if DEBUG == :ON
+    end
+end
+
+# List  -------- END OF CLASS --------
 
 # Index -------- BEGIN OF CLASS --------
 # Description: This is the index for the series object, use the method up when a new series is pushed into the array. The method
@@ -161,6 +209,22 @@ class Index
     end
 end
 # Index -------- END OF CLASS --------
+
+# Search -------- BEGIN OF CLASS --------
+# Description: Search for a series, given an id or a name.
+# Parameters: id or name.
+# Returns: --
+class Search
+    def by_id(id)
+        # search by id
+    end
+    def by_name(name)
+        # search by name
+    end
+
+end
+
+# Search -------- END OF CLASS --------
 
 # GetInfo -------- BEGIN OF CLASS --------
 # Description: Ask for an anime name, the subbing group, the episodes already watched, 
@@ -238,14 +302,20 @@ series = []
 condition = 0
 index = Index.new # Index for array
 
-while condition < 3
+while condition < 5
     case command()
+        # add, edit, list, update, delete, quit
         when 'add'
             series[index.number] = AddSeries.new.anime
             index.up
             condition += 1
-        when 'delete', 'edit', 'update', 'help', 'list'
-            # Do nothing, improve this, is ugly.
+        when 'edit'
+        when 'list'
+            list = List.new(series)
+            list.get()
+        when 'delete'
+            id = ask_id()
+            delete(series, id)
         when 'quit'
             # series.pop
             break
@@ -265,3 +335,5 @@ series.each do
     puts
     i += 1
 end
+
+puts series.object_id if DEBUG == :ON
