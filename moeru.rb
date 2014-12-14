@@ -2,320 +2,96 @@
 # Currently unfinished, and very ugly.
 # Things to complete/do:
 # 1 - Creating & loading a file that contains the Marshaling data, create one if doesn't exists.
-# 2 - Proper methods to comand(): delete series by ID/Name, edit series, update series.
-# 3 - More atributes to AnimeProfile: @torrents downloaded which should'nt be downloaded again, unless user specify it.
+#     Add exceptions, very important.
+# 2 - Command for updating all the animays, also threads.
+# 3 - More atributes to AnimeProfile: @torrents downloaded which shouldn't be downloaded again, unless user specify it.
 #     @error true if there was an error prior fetching the page, so the user will need to use update().
-# 4 - Better exceptions: File isn't created, cand't be read nor writed in. Support this in: NT | Gnu/Linux | Os X
+# 4 - Better exceptions: File isn't created, can't be read nor writed in. Support this in: NT | Gnu/Linux | Os X
 #     The page hasn't any episode (Maybe the name and/or sub isn't correct) raise a message.
 # 5 - Split this into files.
+# 6 - IMPORTANT: Sanitize input, never trust user input; problems detected at: edit, update_by_id, eps_seen, 
+#                Also, refactor some code, DRY, we repeat a lot, rebuild the url when edited item.
+# 7 - Reorder main().
+# 8 - More exceptions for the file, FUCKING REORDER MAIN, make everything prettier.
+# 113 LOC
 # License: nay, for_what_purposes.jpg
+# Last updated: 9/12/2014
+# 
+require_relative 'lib/cli'
+require_relative 'lib/page_threads'
+require_relative 'lib/series'
+require_relative 'lib/file'
+require "open-uri"
+require "yaml"
+
+# Notes: page 405 marshaling, 165 opening files IO (493 file modes)
 
 # Debug, :ON || :OFF
 DEBUG = :OFF
+#!= What if we want delete a field, let's say we don't need anymore the field "720p" or others?
+#   After we entered it, but not needed anymore, how we delete it?
+#!= What if we need to check the url builded, maybe add this only for debugging
+#!= If edited fansub update!
+#!= Print list by a, b, c (index), example, list a would print the animes that start with a.
+#   other way, would be printing the list sorted by name A, then B, and so on. I prefer the first one.
+# Options
+ops = Options.new
+# File for marshaling
+ops.file = IOfile.exists? # ops hold true if file existed, or if it was created
 
-require "open-uri"
-# Module Help
-# Description: List the commands available with a simple description.
-module Help
-    attr_reader :list
-    def get
-    @list =
-" Command  ----  Action
-    add    -- Add new anime
-    edit   -- edit anime
-    list   -- prints the list of animes and corresponding ID
-              which is used to edit them
-    update -- will check if new episodes
-    delete -- delete anime, it will ask for id
-    quit   -- exit"
-    end
-end
-# End of Module Help
-
-# Module RequestEpisodes
-# Description: This module gets an array containing the list of uploaded episodes, from the html source.
-#              It declares a few instance variables: @list, @eps_found, and @eps_remaining.
-module RequestEpisodes
-    def request_page
-        begin
-            source = open(@builded_url) {|html| html.read}
-        rescue
-            source = nil
-            puts "Page can't be fetched"
-        end
-        regex = /<title>([^<]*)<\/title>/
-        if (source != nil) 
-            # Create array to save the list of episodes
-            @list = []
-            @list = source.scan(regex)
-            # Flat the array, since it was [["Nya"]["Episode"]]
-            @list = @list.flatten
-            # When extracting the episodes, the first element of the array ALWAYS is "NyaaTorrents"
-            # because is the first title tag in the rss, delete it.
-            @list.shift
-            @eps_found = @list.length
-            @eps_remaining = @eps_found - @eps_seen
-        else
-            # Print a warning that couldn't reach the server
-            # If there was info about the episodes after this error, keep that, if not save the error or something.
-        end
-    #print "Source: #{source.class}\n"
-    #print "List: #{@list}"
-    end
-end
-# End of Module RequestEpisodes
-
-# BuildUrl -------- BEGIN OF CLASS --------
-# Description: Builds an rss url of nyaa.se when given a series name and the fansubbing group.
-#              Also, replaces every space/tab/newline on the parameters to a single plus sign '+'.
-# Parameters: Two strings, the anime name and the sub group.
-# Returns: The url builded, something like this: http://www.nyaa.se/?page=rss&cats=1_0&term=Gokukoku+no+Brynhildr+AE
-class BuildUrl
-    def initialize(name, subgroup, resolution)
-        @name = name
-        @subgroup = subgroup
-        @resolution = resolution
-    end
-        # This method clean, will replace every space, tab, newline with a plus sign, and then two or more plus sign with just one.
-    def clean
-        @url = @url.gsub(/\s/, '+')
-        @url = @url.gsub(/\+{2,}/, '+')
-    end
-    def build
-        # Build the string
-        @url = "http://www.nyaa.se/?page=rss&cats=1_0&term=" + @name + "+" + @subgroup + "+" + @resolution
-        # Call the method clean which will clean the url, and it returns the last expression evaluated of this method clean.
-        clean()
-    end
-end
-# BuildUrl -------- END OF CLASS --------
-
-# Method command
-# Description: Ask for an action to do (command), like adding, delete, edit a series.
-# Parameters: The command, a string.
-# Returns: A string containing the command.
-def command
-    include Help
-    list = Help.get
-    cmd_unknown = false
-    # add, edit, list, update, delete, quit
-    loop do
-        if (cmd_unknown == false)
-            print "Enter cmd: "
-        else
-            puts "Unknown command"
-            printf "Enter cmd (press ? for all the available commands): "
-        end
-        # Read stdin
-        @cmd = String(gets.chomp)
-        #Switch
-        case @cmd
-            when 'add'
-                # Add new anime
-                break('add')
-            when 'edit'
-                # Edit anime, ask for id/name
-                puts "editing anime"
-                break('edit')
-            when 'list'
-                break('list')
-            when 'update'
-                # Update all animays, not sure if we want to make this automatically. ;-;
-                puts "updating anime"
-                break('update')
-            when 'delete'
-                # JUST ask for deleting command
-                puts "deleting anime"
-                break('delete')
-            when '?', 'help', 'welp'
-                # Check connection.
-                # Check file.
-                # Print commands.
-                puts list
-                break('help')
-            when 'quit'
-                # Quit plox
-                puts "exiting...\n"
-                break('quit')
-            else
-                # ask_again
-                cmd_unknown = true
-        end
-    end 
-end
-# End of Method command
-
-# Method ask_id
-# Description: Ask for an ID, validating it.
-# Parameters: --
-# Returns: An integer or nil if the input wasn't proper.
-def ask_id
-        print("Enter id to delete (n to cancel):")
-        id = gets.chomp
-        id = Integer(id) rescue nil
-        return id
-end
-# End of Method ask_id
-
-# Method delete
-# Description: Delete a series item.
-# Parameters: The series array and the ID.
-# Returns: --
-def delete(series, id)
-        if (id != nil)
-            series.delete_at(id)
-        end
-end
-# End of Method ask_id
-
-# List  -------- BEGIN OF CLASS --------
-# Description: Prints all the series name and the id.
-# Parameters: The arrays of series.
-# Returns: Nothing, only prints into the stdout.
-class List
-    def initialize(series)
-    @series = series
-    end
-    def get
-        if (@series.length != 0)
-            @series.each.with_index do |anime, id|
-                puts "Anime: #{anime.name} ID: #{id}"
-            end
-        else
-            puts "List is empty"
-        end
-        puts @series.object_id if DEBUG == :ON
-    end
-end
-
-# List  -------- END OF CLASS --------
-
-# Index -------- BEGIN OF CLASS --------
-# Description: This is the index for the series object, use the method up when a new series is pushed into the array. The method
-#              down is used when the object pushed into the array is not a valid AnimeProfile object (like a string for exammple).
-# Parameters: --
-# Returns: --
-class Index
-    attr_reader :number
-    def initialize#(name)
-        # Read Marshal file
-        @number = 0
-    end
-    def up
-        @number += 1
-    end
-    def down
-        @number -= 1
-    end
-end
-# Index -------- END OF CLASS --------
-
-# Search -------- BEGIN OF CLASS --------
-# Description: Search for a series, given an id or a name.
-# Parameters: id or name.
-# Returns: --
-class Search
-    def by_id(id)
-        # search by id
-    end
-    def by_name(name)
-        # search by name
-    end
-
-end
-
-# Search -------- END OF CLASS --------
-
-# GetInfo -------- BEGIN OF CLASS --------
-# Description: Ask for an anime name, the subbing group, the episodes already watched, 
-# Parameters: Two strings, the anime name and the sub group.
-# Returns: --
-class GetInfo
-    def ask_anime
-    print("Enter anime: ")
-    @ask_anime = String(gets.chomp)
-    end
-    def ask_subgroup
-    print("Enter subbing group: ")
-    @ask_subgroup = String(gets.chomp)
-    end
-    def ask_resolution
-    printf("Enter resolution (normally one of the following 420p|720p|1080p): ")
-    @ask_resolution = String(gets.chomp)
-    end
-    def ask_eps_seen
-    print("How many episodes of this series have you watched?: ")
-    @ask_eps_seen = Integer(gets.chomp)
-    end
-end
-# GetInfo -------- END OF CLASS --------
-
-# AnimeProfile -------- BEGIN OF CLASS --------
-# Description: This save an series profile, inluding the name series, fansubbing group, ID, builded url,
-#              episodes seen, episodes found, episodes remaining.
-# Parameters: --
-# Returns: --
-class AnimeProfile
-    include RequestEpisodes
-    # Accesors
-    attr_reader :name, :fansub, :builded_url, :resolution, :eps_seen, :eps_found, :eps_remaining
-    # Getters
-    def name=(str_name)
-    @name = str_name
-    end
-    def fansub=(str_sub)
-    @fansub = str_sub
-    end
-    def builded_url=(str_url)
-    @builded_url = str_url
-    end
-    def resolution=(str_res)
-    @resolution = str_res
-    end
-    def eps_seen=(str_eps)
-    @eps_seen = str_eps
-    end
-end
-# AnimeProfile -------- END OF CLASS --------
-
-# AddSeries
-# Description: Wrapper to call every setter method to create an AnimeProfile instance.
-# Parameter: --
-# Returns: An object of AnimeProfile.
-class AddSeries
-    attr_reader :anime
-    def initialize
-    @anime             = AnimeProfile.new # Create a new series
-    getinfo            = GetInfo.new
-    @anime.name        = getinfo.ask_anime
-    @anime.fansub      = getinfo.ask_subgroup
-    @anime.resolution  = getinfo.ask_resolution
-    @anime.builded_url = BuildUrl.new(anime.name, anime.fansub, anime.resolution).build # Build url
-    @anime.eps_seen    = getinfo.ask_eps_seen
-    @anime.request_page
-    end
-end
-# AddSeries -------- END OF CLASS --------
-
-puts "Welcome to moeru :3"
-series = []
-condition = 0
+series = [] # Series object, this hold all the info for the animays
 index = Index.new # Index for array
 
-while condition < 5
-    case command()
-        # add, edit, list, update, delete, quit
+if (ops.file)
+    begin
+        series = YAML.load(File.open("lib/db.txt"))
+        index.set_at(series.length)
+        puts "LENGTH IS: #{index.number}" if DEBUG == :ON
+    rescue NoMethodError, ArgumentError
+        puts "NoMethodError" if DEBUG == :ON
+        series = []
+        Action.seems_empty()
+        #-! If not wanna restore, quit, or save an option at quiting to check again and save it
+        if (Action.yes_or_no?) # File is corrupt, restore it
+            File.open("lib/db.txt", "w+") do |f|
+                YAML.dump(series, f)
+            end
+        end
+    end
+end
+
+puts "Welcome to moeru, #{ENV['USER']} :3"
+condition = 0
+while condition < 5 #-! Change to infinite loop
+    case Command.ask()
+        # add, edit, list, update_all, update_by_id, delete, quit
         when 'add'
-            series[index.number] = AddSeries.new.anime
+            series[index.number] = AddSeries.new_anime
             index.up
             condition += 1
         when 'edit'
+            id = Action.ask_to_edit()
+            if (id && !Sanitize.is_neg?(id) && Sanitize.in_bounds?(id, series))
+                Action.edit(id, series) #-!OK, del comm if episodes changed do again the operation to re-calculate @eps_remaining
+                Action.rebuild_url(id, series)
+            end
         when 'list'
-            list = List.new(series)
-            list.get()
+            List.get(series)
+        when 'update_all' #!- update 5 at time
+            Action.to_update_all(series)
+            puts "UPDATING ALL: #{id}"
+        when 'update_by_id'
+            id = Action.to_update_by_id()
+            if (id && !Sanitize.is_neg?(id) && Sanitize.in_bounds?(id, series))
+                Action.update_one(id, series)
+                puts "UPDATING: #{id}"
+            puts "Eps found: #{series[id].eps_found}"
+            end
         when 'delete'
-            id = ask_id()
-            delete(series, id)
+            id = Action.ask_to_delete()
+            if (id && !Sanitize.is_neg?(id) && Sanitize.in_bounds?(id, series))
+                Action.delete(series, id)
+            end
         when 'quit'
             # series.pop
             break
@@ -325,6 +101,53 @@ while condition < 5
     end
 end
 
+begin
+    if (DEBUG == :ON)
+        data = YAML.dump(series)
+    end
+    File.open("lib/db.txt", "w+") do |f|
+        YAML.dump(series, f)
+    end
+rescue
+    puts ("Trying to save it again")
+    retry
+end
+
+if (DEBUG == :ON)
+    puts "Series id: #{series.object_id}, data id: #{data.object_id}"
+    marobj = YAML.load(data)
+    puts "marobj id: #{marobj.object_id}"
+    i = 0
+    series.each do
+        puts "Anime: #{marobj[i].name}"
+        puts "Url built:"
+        puts marobj[i].builded_url
+        puts "Episodes found: #{marobj[i].eps_found}"
+        puts "Episodes left: #{marobj[i].eps_remaining}"
+        puts
+        i += 1
+    end
+end
+=begin
+puts "Series id: #{series.object_id}, data id: #{data.object_id}" if DEBUG == :ON
+if (DEBUG == ON)
+    marobj = YAML.load(data)
+end
+puts "marobj id: #{marobj.object_id}" if DEBUG == :ON
+if (DEBUG == :ON)
+    i = 0
+    series.each do
+        puts "Anime: #{marobj[i].name}"
+        puts "Url built:"
+        puts marobj[i].builded_url
+        puts "Episodes found: #{marobj[i].eps_found}"
+        puts "Episodes left: #{marobj[i].eps_remaining}"
+        puts
+        i += 1
+    end
+end
+=end
+=begin
 i = 0
 series.each do
     puts "Anime: #{series[i].name}"
@@ -335,5 +158,5 @@ series.each do
     puts
     i += 1
 end
-
-puts series.object_id if DEBUG == :ON
+=end
+puts Debug.show(series) if DEBUG == :ON
