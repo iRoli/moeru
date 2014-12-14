@@ -128,35 +128,5 @@ if (DEBUG == :ON)
         i += 1
     end
 end
-=begin
-puts "Series id: #{series.object_id}, data id: #{data.object_id}" if DEBUG == :ON
-if (DEBUG == ON)
-    marobj = YAML.load(data)
-end
-puts "marobj id: #{marobj.object_id}" if DEBUG == :ON
-if (DEBUG == :ON)
-    i = 0
-    series.each do
-        puts "Anime: #{marobj[i].name}"
-        puts "Url built:"
-        puts marobj[i].builded_url
-        puts "Episodes found: #{marobj[i].eps_found}"
-        puts "Episodes left: #{marobj[i].eps_remaining}"
-        puts
-        i += 1
-    end
-end
-=end
-=begin
-i = 0
-series.each do
-    puts "Anime: #{series[i].name}"
-    puts "Url built:"
-    puts series[i].builded_url
-    puts "Episodes found: #{series[i].eps_found}"
-    puts "Episodes left: #{series[i].eps_remaining}"
-    puts
-    i += 1
-end
-=end
+
 puts Debug.show(series) if DEBUG == :ON
